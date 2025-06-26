@@ -1,7 +1,12 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import useAuth from '../../hooks/useAuth'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
+import { Elements } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
 
+import CheckoutForm from '../Form/CheckoutForm '
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK_KEY);
 const PurchaseModal = ({ closeModal, isOpen, plant }) => {
   // Total Price Calculation
  const { name, description, category, quantity, price, _id, seller, image } =
@@ -9,13 +14,42 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
       const {user}=useAuth()
 const [selectedQuantity,setSelectedQuantity]= useState(1)
 const [totalPrice,setTotalPrice]=useState(price)
+const [orderData,setOrderData]=useState({
+  customer:{
+    name:user?.displayName,
+    email:user?.email,
+    image:user?.photoURL
 
+  },
+  seller,
+  plantId:_id,
+   quantity:1,
+ price: price,
+ plantcategory:category,
+ plantName:name,
+ plantimage:image
+
+})
 const handleQuantity=value=>{
 console.log(value)
- const quantityNumber = parseInt(value)
-  setSelectedQuantity(quantityNumber)
-  setTotalPrice(quantityNumber * price)
+ const totalquantity = parseInt(value)
+ if(totalquantity>quantity){
+   return toast.error("can't purchase")
+ }
+  setSelectedQuantity(totalquantity)
+ const totalPrice=totalquantity * price
+   setTotalPrice( totalPrice)
+   setOrderData(prev=>{
+    return{
+      ...prev,
+      price:totalPrice,
+      quantity:totalquantity
+
+    }
+   })
 }
+
+console.log(orderData)
   return (
     <Dialog
       open={isOpen}
@@ -60,11 +94,15 @@ displayName
               <input className='border px-3' value={selectedQuantity} onChange={e=>handleQuantity(e.target.value)} type="number" min={1} max={quantity} />
             </div>
             <div className='mt-2'>
-              <p className='text-sm text-gray-500'>Selected Quantity: {quantity}</p>
+              <p className='text-sm text-gray-500'>Selected Quantity: {selectedQuantity}</p>
             </div>
             <div className='mt-2'>
-              <p className='text-sm text-gray-500'>Total Price : $ {price}</p>
+              <p className='text-sm text-gray-500'>Total Price : $ {totalPrice}</p>
             </div>
+      {/* stripe checkout form */}
+      <Elements stripe={stripePromise}>
+      <CheckoutForm totalPrice={totalPrice} orderData={orderData} closeModal={closeModal} />
+    </Elements>
           </DialogPanel>
         </div>
       </div>
